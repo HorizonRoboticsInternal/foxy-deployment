@@ -41,16 +41,28 @@
         packages = let pythonDevEnv = pkgs.python3.withPackages (pyPkgs: with pyPkgs; [
           numpy
           pytorchWithCuda11
+          pybind11
+          pygame
+          loguru
+          click
 
           # Dev Tools
           pudb
           jupyterlab
           ipywidgets
           jupyterlab-widgets
-        ]); in [
+        ]); in with pkgs; [
           pythonDevEnv
-          pkgs.nodePackages.pyright
-          pkgs.pre-commit
+          nodePackages.pyright
+          pre-commit
+
+          # foxypp Development
+          llvmPackages_14.clang
+          cmake
+          cmakeCurses
+          pkgconfig
+          unitree-legged-sdk
+          spdlog
         ];
 
         shellHook = ''
