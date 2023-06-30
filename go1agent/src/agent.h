@@ -25,6 +25,39 @@ struct LegControlData {
   }
 };
 
+struct BodyData {
+  std::array<float, 4> quat_data;
+  std::array<float, 3> rpy_data;
+  std::array<float, 3> acc_data;    // Body frame
+  std::array<float, 3> omega_data;  // Body frame
+  std::array<float, 4> contact_data;
+
+  inline pybind11::array_t<float> quat() const {
+    return pybind11::array_t<float>(12, quat_data.data());
+  }
+
+  inline pybind11::array_t<float> rpy() const {
+    return pybind11::array_t<float>(12, rpy_data.data());
+  }
+
+  inline pybind11::array_t<float> acc() const {
+    return pybind11::array_t<float>(12, acc_data.data());
+  }
+
+  inline pybind11::array_t<float> omega() const {
+    return pybind11::array_t<float>(12, omega_data.data());
+  }
+
+  inline pybind11::array_t<float> contact() const {
+    return pybind11::array_t<float>(12, contact_data.data());
+  }
+};
+
+struct SensorData {
+  LegControlData leg;
+  BodyData body;
+};
+
 class Go1Agent {
  public:
   Go1Agent(int frequency = 500);
