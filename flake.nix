@@ -19,6 +19,13 @@
       dev = nixpkgs.lib.composeManyExtensions [
         ml-pkgs.overlays.torch-family
         unitree-go1-sdk.overlays.default
+        (final: prev: {
+          pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
+            (python-final: python-prev: {
+              go1agent = python-final.callPackage ./go1agent {};
+            })
+          ];
+        })
       ];
     };
   } // inputs.utils.lib.eachSystem [ "x86_64-linux" "aarch64-linux" ] (system:
@@ -45,6 +52,7 @@
           pygame
           loguru
           click
+          go1agent
 
           # Dev Tools
           pudb
@@ -56,7 +64,7 @@
           nodePackages.pyright
           pre-commit
 
-          # foxypp Development
+          # go1agent Development
           llvmPackages_14.clang
           cmake
           cmakeCurses
@@ -72,5 +80,7 @@
           export PYTHONPATH="$(pwd):$PYTHONPATH"
         '';
       };
+
+      packages.go1agent = pkgs.python3Packages.go1agent;
     });
 }

@@ -165,3 +165,6 @@ build
 # direnv
 .envrc
 .direnv
+
+# Nix
+result
