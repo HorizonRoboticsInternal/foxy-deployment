@@ -48,5 +48,14 @@ endif()
 find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
 find_package(pybind11 CONFIG REQUIRED)
 
+add_library(agent STATIC)
+target_sources(agent
+    PUBLIC
+    $<INSTALL_INTERFACE:include/go1agent/agent.h>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/src/agent.h>
+    PRIVATE
+    src/agent.cc)
+target_link_libraries(agent PRIVATE pybind11::pybind11 unitree_legged_sdk)
+
 pybind11_add_module(go1agent src/go1agent.cc)
-target_link_libraries(go1agent PRIVATE spdlog::spdlog)
+target_link_libraries(go1agent PRIVATE agent unitree_legged_sdk)
