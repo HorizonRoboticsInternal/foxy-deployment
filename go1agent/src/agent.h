@@ -1,5 +1,7 @@
 #pragma once
 
+#include <mutex>
+
 #include "pybind11/numpy.h"
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
@@ -63,14 +65,14 @@ class Go1Agent {
   Go1Agent(int frequency = 500);
 
   void Spin();
-  void PublishAction();
+  void PublishAction(pybind11::array_t<float> q);
 
   void GetObs() {
   }
 
   void RunOnce();
 
-  LegControlData Read();
+  SensorData Read();
 
  private:
   inline void UDPRecv() {
@@ -96,9 +98,12 @@ class Go1Agent {
   float dt_ = 0.0;
 
   // ---------- States ----------
-
-  UNITREE_LEGGED_SDK::LowCmd cmd_     = {0};
+  bool first_ever_                = true;
+  UNITREE_LEGGED_SDK::LowCmd cmd_ = {0};
+  std::mutex state_mutex_;
   UNITREE_LEGGED_SDK::LowState state_ = {0};
+  std::mutex target_q_mutex_;
+  std::array<float, 12> target_q_{};
 };
 
 }  // namespace foxy
