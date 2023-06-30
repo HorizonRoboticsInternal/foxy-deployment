@@ -1,8 +1,29 @@
 #pragma once
 
+#include "pybind11/numpy.h"
+#include "pybind11/pybind11.h"
+#include "pybind11/stl.h"
 #include "unitree_legged_sdk/unitree_legged_sdk.h"
 
 namespace foxy {
+
+struct LegControlData {
+  std::array<float, 12> q_data;
+  std::array<float, 12> qd_data;
+  std::array<float, 12> tau_est_data;
+
+  inline pybind11::array_t<float> q() const {
+    return pybind11::array_t<float>(12, q_data.data());
+  }
+
+  inline pybind11::array_t<float> qd() const {
+    return pybind11::array_t<float>(12, qd_data.data());
+  }
+
+  inline pybind11::array_t<float> tau() const {
+    return pybind11::array_t<float>(12, tau_est_data.data());
+  }
+};
 
 class Go1Agent {
  public:
@@ -14,15 +35,16 @@ class Go1Agent {
   void GetObs() {
   }
 
-  void RunOnce() {
-  }
+  void RunOnce();
+
+  LegControlData Read();
 
  private:
-  void UDPRecv() {
+  inline void UDPRecv() {
     udp_.Recv();
   }
 
-  void UDPSend() {
+  inline void UDPSend() {
     udp_.Send();
   }
 
@@ -42,7 +64,8 @@ class Go1Agent {
 
   // ---------- States ----------
 
-  UNITREE_LEGGED_SDK::LowCmd cmd = {0};
+  UNITREE_LEGGED_SDK::LowCmd cmd_     = {0};
+  UNITREE_LEGGED_SDK::LowState state_ = {0};
 };
 
 }  // namespace foxy

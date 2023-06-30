@@ -1,7 +1,5 @@
 #include "src/agent.h"
 
-#include "pybind11/pybind11.h"
-
 namespace UT = UNITREE_LEGGED_SDK;
 namespace py = pybind11;
 
@@ -9,7 +7,7 @@ namespace foxy {
 
 Go1Agent::Go1Agent(int frequency)
     : safe_(UT::LeggedType::Go1), udp_(UT::LOWLEVEL), dt_(1.0 / frequency) {
-  udp_.InitCmdData(cmd);
+  udp_.InitCmdData(cmd_);
 }
 
 void Go1Agent::Spin() {
@@ -23,6 +21,18 @@ void Go1Agent::Spin() {
 
 void Go1Agent::PublishAction() {
   py::print("ok");
+}
+
+void Go1Agent::RunOnce() {
+  udp_.GetRecv(state_);
+}
+
+LegControlData Go1Agent::Read() {
+  return LegControlData{
+      .q_data       = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+      .qd_data      = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+      .tau_est_data = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+  };
 }
 
 }  // namespace foxy
