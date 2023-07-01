@@ -1,5 +1,8 @@
 #include "src/agent.h"
 
+#include <chrono>
+#include <thread>
+
 #include "spdlog/spdlog.h"
 
 namespace UT = UNITREE_LEGGED_SDK;
@@ -43,6 +46,18 @@ void Go1Agent::Spin() {
   loop_control_->start();
   loop_send_->start();
   loop_recv_->start();
+
+  while (true) {
+    {
+      std::lock_guard<std::mutex> lock{state_mutex_};
+      if (state_.motorState[0].q != 0) {
+        break;
+      }
+    }
+    spdlog::info("Robot not ready yet. Wait for another 200ms ...");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
+  spdlog::info("Robot is now ready.");
 }
 
 void Go1Agent::PublishAction(py::array_t<float> q) {
