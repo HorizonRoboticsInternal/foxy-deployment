@@ -55,7 +55,7 @@ target_sources(agent
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/src/agent.h>
     PRIVATE
     src/agent.cc)
-target_link_libraries(agent PRIVATE pybind11::pybind11 unitree_legged_sdk)
+target_link_libraries(agent PRIVATE pybind11::pybind11 unitree_legged_sdk spdlog::spdlog)
 
 pybind11_add_module(go1agent src/go1agent.cc)
 target_link_libraries(go1agent PRIVATE agent unitree_legged_sdk)

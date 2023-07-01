@@ -1,5 +1,7 @@
 #include "src/agent.h"
 
+#include "spdlog/spdlog.h"
+
 namespace UT = UNITREE_LEGGED_SDK;
 namespace py = pybind11;
 
@@ -38,6 +40,9 @@ void Go1Agent::Spin() {
       "udp_send", dt_, 3, std::bind(&Go1Agent::UDPSend, this));
   loop_recv_ = std::make_unique<UT::LoopFunc>(
       "udp_recv", dt_, 3, std::bind(&Go1Agent::UDPRecv, this));
+  loop_control_->start();
+  loop_send_->start();
+  loop_recv_->start();
 }
 
 void Go1Agent::PublishAction(py::array_t<float> q) {
@@ -46,6 +51,19 @@ void Go1Agent::PublishAction(py::array_t<float> q) {
     auto q_unchecked = q.unchecked<1>();
     std::copy(q_unchecked.data(0), q_unchecked.data(0) + 12, target_q_.begin());
   }
+  spdlog::info("Target q is now {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
+               target_q_[0],
+               target_q_[1],
+               target_q_[2],
+               target_q_[3],
+               target_q_[4],
+               target_q_[5],
+               target_q_[6],
+               target_q_[7],
+               target_q_[8],
+               target_q_[9],
+               target_q_[10],
+               target_q_[11]);
 }
 
 void Go1Agent::RunOnce() {
