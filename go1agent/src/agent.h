@@ -35,23 +35,23 @@ struct BodyData {
   std::array<float, 4> contact_data;
 
   inline pybind11::array_t<float> quat() const {
-    return pybind11::array_t<float>(12, quat_data.data());
+    return pybind11::array_t<float>(4, quat_data.data());
   }
 
   inline pybind11::array_t<float> rpy() const {
-    return pybind11::array_t<float>(12, rpy_data.data());
+    return pybind11::array_t<float>(3, rpy_data.data());
   }
 
   inline pybind11::array_t<float> acc() const {
-    return pybind11::array_t<float>(12, acc_data.data());
+    return pybind11::array_t<float>(3, acc_data.data());
   }
 
   inline pybind11::array_t<float> omega() const {
-    return pybind11::array_t<float>(12, omega_data.data());
+    return pybind11::array_t<float>(3, omega_data.data());
   }
 
   inline pybind11::array_t<float> contact() const {
-    return pybind11::array_t<float>(12, contact_data.data());
+    return pybind11::array_t<float>(4, contact_data.data());
   }
 };
 
