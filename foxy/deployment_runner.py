@@ -1,9 +1,33 @@
 # Adapted from https://github.com/Improbable-AI/walk-these-ways
 import time
+import math
+
 import numpy as np
 import torch
 from loguru import logger
 from go1agent import Go1Agent, SensorData
+from foxy.command_profile import CommandProfile
+
+
+def get_rotation_matrix_from_rpy(rpy: np.ndarray) -> np.ndarray:
+    r, p, y = rpy
+    R_x = np.array([[1, 0, 0],
+                    [0, math.cos(r), -math.sin(r)],
+                    [0, math.sin(r), math.cos(r)]
+                    ])
+
+    R_y = np.array([[math.cos(p), 0, math.sin(p)],
+                    [0, 1, 0],
+                    [-math.sin(p), 0, math.cos(p)]
+                    ])
+
+    R_z = np.array([[math.cos(y), -math.sin(y), 0],
+                    [math.sin(y), math.cos(y), 0],
+                    [0, 0, 1]
+                    ])
+
+    rot = np.dot(R_z, np.dot(R_y, R_x))
+    return rot
 
 
 class DeploymentRunner(object):
@@ -35,6 +59,32 @@ class DeploymentRunner(object):
             ]
         )
 
+        # Command scales
+        self.num_commands = cfg["commands"]["num_commands"]
+        assert self.num_commands == 9
+        self.obs_scales = cfg.get("obs_scales", None) or cfg["normalization"]["obs_scales"]
+        self.commands_scale = np.array(
+            [self.obs_scales["lin_vel"], self.obs_scales["lin_vel"],
+             self.obs_scales["ang_vel"], self.obs_scales["body_height_cmd"], 1, 1, 1, 1, 1,
+             self.obs_scales["footswing_height_cmd"], self.obs_scales["body_pitch_cmd"],
+             # 0, self.obs_scales["body_pitch_cmd"],
+             self.obs_scales["body_roll_cmd"], self.obs_scales["stance_width_cmd"],
+             self.obs_scales["stance_length_cmd"], self.obs_scales["aux_reward_cmd"], 1, 1, 1, 1, 1, 1
+             ])[:self.num_commands]
+
+    def assemble_observation(sensor: SensorData):
+
+        # 1. Gravity Vector (dim = 3)
+        R = get_rotation_matrix_from_rpy(sensor.body.rpy)
+        gravity_vector = np.dot(R.T, np.array([0, 0, -1], dtype=np.float32))
+
+        # 2. Command Profile (dim = 9)
+        commands = self.command_profile.get_command()
+        observation = np.concatenate([
+            gravity_vector,
+            commands * self.commands_scale], axis=-1)
+        return torch.tensor(observation).float()
+
     def calibrate(self, stance: str = "stand"):
         assert stance in ["stand", "down"]
         logger.info("About to calibrate; the robot will stand ...")
@@ -61,9 +111,18 @@ class DeploymentRunner(object):
             self.agent.publish_action(next_target)
             time.sleep(0.05)
 
-    def run(self, max_step: int = 1_000_000):
+    def run(self, max_steps: int = 1_000_000):
+        # First make the robot into a standing stance. Because of the Kp = 20,
+        # the standing can be rather soft and more like "kneeling". This is
+        # expected and has been confirmed by the author.
         self.calibrate(stance="stand")
-        while True:
-            state: SensorData = self.agent.read()
-            print(state.leg.q())
-            time.sleep(1.0)
+
+        # Now, run the control loop
+        for i in range(max_steps):
+            pass
+
+        # Finally, return to the standing stance
+        self.calibrate(stance="stand")
+
+            
+                
