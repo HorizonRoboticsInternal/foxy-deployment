@@ -57,12 +57,13 @@ class DeploymentRunner(object):
         # Now execute the sequence with 20 Hz control frequency
         for target in target_sequence:
             next_target = target
-            next_target[[0, 3, 6, 9]] /= self.hip_reduction
-            next_target = next_target / self.action_scale
+            next_target += self.default_dof_pos
             self.agent.publish_action(next_target)
             time.sleep(0.05)
 
     def run(self, max_step: int = 1_000_000):
         self.calibrate(stance="stand")
         while True:
+            state: SensorData = self.agent.read()
+            print(state.leg.q())
             time.sleep(1.0)
