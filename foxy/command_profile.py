@@ -1,97 +1,76 @@
 # Adapted from https://github.com/Improbable-AI/walk-these-ways
-import torch
-
-class CommandProfile(object):
-    def __init__(self, dt, max_time_s=10.):
-        self.dt = dt
-        self.max_timestep = int(max_time_s / self.dt)
-        # Command at each timestep is of dimension 9
-        self.commands = torch.zeros((self.max_timestep, 9))
-        self.start_time = 0
-
-    def get_command(self, t):
-        timestep = int((t - self.start_time) / self.dt)
-        timestep = min(timestep, self.max_timestep - 1)
-        return self.commands[timestep, :]
-
-    def get_buttons(self):
-        return [0, 0, 0, 0]
-
-    def reset(self, reset_time):
-        self.start_time = reset_time
+import numpy as np
+from loguru import logger
 
 
-class ConstantAccelerationProfile(CommandProfile):
-    def __init__(self, dt, max_speed, accel_time, zero_buf_time=0):
-        super().__init__(dt)
-        zero_buf_timesteps = int(zero_buf_time / self.dt)
-        accel_timesteps = int(accel_time / self.dt)
-        self.commands[:zero_buf_timesteps] = 0
-        self.commands[zero_buf_timesteps:zero_buf_timesteps + accel_timesteps, 0] = torch.arange(0, max_speed,
-                                                                                                 step=max_speed / accel_timesteps)
-        self.commands[zero_buf_timesteps + accel_timesteps:, 0] = max_speed
+class ValueHolder(object):
+    def __init__(self, default: float = 0.0, lo: float = 0.0, hi: float = 1.0):
+        self._defautl = default
+        self._value = default
+        self._lo = lo
+        self._hi = hi
+
+    def set_value(self, value):
+        self._value = max(min(value, self._hi), self._lo)
+
+    def value(self) -> float:
+        return self._value
 
 
-class ElegantForwardProfile(CommandProfile):
-    def __init__(self, dt, max_speed, accel_time, duration, deaccel_time, zero_buf_time=0):
-        import numpy as np
+class ControllerCommandProfile(object):
+    def __init__(self):
+        # Initialize the 15 commands
+        self.cmd_x = ValueHolder(0.0, -1.0, 1.0)
+        self.cmd_y = ValueHolder(0.0, -0.6, 0.6)
+        self.cmd_yaw = ValueHolder(0.0, -1.0, 1.0)
+        self.cmd_height = ValueHolder(0.0, -0.3, 0.3)
+        self.cmd_freq = ValueHolder(3.0, 2.0, 4.0)
+        self.cmd_phase = ValueHolder(0.0, 0.0, 1.0)
+        self.cmd_offset = ValueHolder(0.0, 0.0, 1.0)
+        self.cmd_bound = ValueHolder(0.0, 0.0, 1.0)
+        self.cmd_duration = ValueHolder(0.5, 0.0, 1.0)
+        self.cmd_footswing = ValueHolder(0.08, 0.03, 0.35)
+        self.cmd_ori_pitch = ValueHolder(0.0, -0.4, 0.4)
+        self.cmd_ori_roll = ValueHolder(0.0, -0.2, 0.2)
+        self.cmd_stance_width = ValueHolder(0.33, 0.1, 0.45)
+        self.cmd_stance_length = ValueHolder(0.4, 0.35, 0.45)
+        self.cmd_aux_reward = ValueHolder(0.0, 0.0, 0.0)  # Not used
 
-        zero_buf_timesteps = int(zero_buf_time / dt)
-        accel_timesteps = int(accel_time / dt)
-        duration_timesteps = int(duration / dt)
-        deaccel_timesteps = int(deaccel_time / dt)
+        # Set the gait mode
+        self.set_gait_mode("pace")
 
-        total_time_s = zero_buf_time + accel_time + duration + deaccel_time
+    def set_gait_mode(self, mode: str):
+        assert mode in ["bound", "trot", "pace", "pronk"]
+        phase, offset, bound, duration = {
+            "bound": (0.5, 0.0, 0.0, 0.5),
+            "trot": (0.0, 0.0, 0.0, 0.5),
+            "pace": (0.0, 0.5, 0.0, 0.5),
+            "pronk": (0.0, 0.0, 0.5, 0.5),
+        }[mode]
+        self.cmd_phase.set_value(phase)
+        self.cmd_offset.set_value(offset)
+        self.cmd_bound.set_value(bound)
+        self.cmd_duration.set_value(duration)
+        logger.info(f"Switched to gait mode '{mode}'")
 
-        super().__init__(dt, total_time_s)
-
-        x_vel_cmds = [0] * zero_buf_timesteps + [*np.linspace(0, max_speed, accel_timesteps)] + \
-                     [max_speed] * duration_timesteps + [*np.linspace(max_speed, 0, deaccel_timesteps)]
-
-        self.commands[:len(x_vel_cmds), 0] = torch.Tensor(x_vel_cmds)
-
-
-class ElegantYawProfile(CommandProfile):
-    def __init__(self, dt, max_speed, zero_buf_time, accel_time, duration, deaccel_time, yaw_rate):
-        import numpy as np
-
-        zero_buf_timesteps = int(zero_buf_time / dt)
-        accel_timesteps = int(accel_time / dt)
-        duration_timesteps = int(duration / dt)
-        deaccel_timesteps = int(deaccel_time / dt)
-
-        total_time_s = zero_buf_time + accel_time + duration + deaccel_time
-
-        super().__init__(dt, total_time_s)
-
-        x_vel_cmds = [0] * zero_buf_timesteps + [*np.linspace(0, max_speed, accel_timesteps)] + \
-                     [max_speed] * duration_timesteps + [*np.linspace(max_speed, 0, deaccel_timesteps)]
-
-        yaw_vel_cmds = [0] * zero_buf_timesteps + [0] * accel_timesteps + \
-                       [yaw_rate] * duration_timesteps + [0] * deaccel_timesteps
-
-        self.commands[:len(x_vel_cmds), 0] = torch.Tensor(x_vel_cmds)
-        self.commands[:len(yaw_vel_cmds), 2] = torch.Tensor(yaw_vel_cmds)
-
-
-class ElegantGaitProfile(CommandProfile):
-    def __init__(self, dt, filename):
-        import numpy as np
-        import json
-
-        with open(f'../command_profiles/{filename}', 'r') as file:
-                command_sequence = json.load(file)
-
-        len_command_sequence = len(command_sequence["x_vel_cmd"])
-        total_time_s = int(len_command_sequence / dt)
-
-        super().__init__(dt, total_time_s)
-
-        self.commands[:len_command_sequence, 0] = torch.Tensor(command_sequence["x_vel_cmd"])
-        self.commands[:len_command_sequence, 2] = torch.Tensor(command_sequence["yaw_vel_cmd"])
-        self.commands[:len_command_sequence, 3] = torch.Tensor(command_sequence["height_cmd"])
-        self.commands[:len_command_sequence, 4] = torch.Tensor(command_sequence["frequency_cmd"])
-        self.commands[:len_command_sequence, 5] = torch.Tensor(command_sequence["offset_cmd"])
-        self.commands[:len_command_sequence, 6] = torch.Tensor(command_sequence["phase_cmd"])
-        self.commands[:len_command_sequence, 7] = torch.Tensor(command_sequence["bound_cmd"])
-        self.commands[:len_command_sequence, 8] = torch.Tensor(command_sequence["duration_cmd"])
+    def get_command(self) -> np.ndarray:
+        return np.array(
+            [
+                self.cmd_x.value(),
+                self.cmd_y.value(),
+                self.cmd_yaw.value(),
+                self.cmd_height.value(),
+                self.cmd_freq.value(),
+                self.cmd_phase.value(),
+                self.cmd_offset.value(),
+                self.cmd_bound.value(),
+                self.cmd_duration.value(),
+                self.cmd_footswing.value(),
+                self.cmd_ori_pitch.value(),
+                self.cmd_ori_roll.value(),
+                self.cmd_stance_width.value(),
+                self.cmd_stance_length.value(),
+                self.cmd_aux_reward.value(),
+            ],
+            dtype=np.float32,
+        )

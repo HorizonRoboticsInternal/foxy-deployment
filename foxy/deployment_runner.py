@@ -7,7 +7,7 @@ import numpy as np
 import torch
 from loguru import logger
 from go1agent import Go1Agent, SensorData
-from foxy.command_profile import CommandProfile
+from foxy.command_profile import ControllerCommandProfile
 
 
 def get_rotation_matrix_from_rpy(rpy: np.ndarray) -> np.ndarray:
@@ -40,6 +40,7 @@ class DeploymentRunner(object):
         self.policy = policy
         self.dt = self.cfg["control"]["decimation"] * self.cfg["sim"]["dt"]
         self.num_obs_history = self.cfg["env"]["num_observation_history"]
+        self.command_profile = ControllerCommandProfile()
 
         # Cache a few config values
         self.hip_reduction = cfg["control"]["hip_scale_reduction"]
@@ -65,38 +66,50 @@ class DeploymentRunner(object):
             ]
         )
 
-        # Command scales
-        self.num_commands = cfg["commands"]["num_commands"]
-        assert self.num_commands == 9
         self.obs_scales = (
             cfg.get("obs_scales", None) or cfg["normalization"]["obs_scales"]
         )
+
+        # Command scales
+        self.num_commands = cfg["commands"]["num_commands"]
+        assert self.num_commands == 15
+
+        # dimension of commands is 15
         self.commands_scale = np.array(
             [
+                # Forward Velocity (cmd_x)
                 self.obs_scales["lin_vel"],
+                # Lateral Velocity (cmd_y)
                 self.obs_scales["lin_vel"],
+                # Angular Velocity (cmd_yaw)
                 self.obs_scales["ang_vel"],
+                # Trunk Hieght (cmd_height)
                 self.obs_scales["body_height_cmd"],
-                1,
-                1,
-                1,
-                1,
-                1,
+                # Foot step frequency (cmd_freq)
+                1.0,
+                # Phase (cmd_phase)
+                1.0,
+                # Offset (cmd_offset)
+                1.0,
+                # Bound (cmd_bound)
+                1.0,
+                # Duration (cmd_duration)
+                1.0,
+                # Foot swing height (cmd_footswing)
                 self.obs_scales["footswing_height_cmd"],
+                # Pitch (cmd_ori_pitch)
                 self.obs_scales["body_pitch_cmd"],
-                # 0, self.obs_scales["body_pitch_cmd"],
+                # Roll (cmd_ori_roll)
                 self.obs_scales["body_roll_cmd"],
+                # Stance foot contact width (cmd_stance_width)
                 self.obs_scales["stance_width_cmd"],
+                # Stance foot contact length (cmd_stance_length)
                 self.obs_scales["stance_length_cmd"],
+                # Not used
                 self.obs_scales["aux_reward_cmd"],
-                1,
-                1,
-                1,
-                1,
-                1,
-                1,
-            ]
-        )[: self.num_commands]
+            ],
+            dtype=np.float32,
+        )
 
         # States
         self.action = torch.zeros(12)
