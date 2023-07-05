@@ -1,7 +1,7 @@
 # Adapted from https://github.com/Improbable-AI/walk-these-ways
 import time
 import math
-from typing import Callable
+from typing import Callable, Dict, Optional
 
 import numpy as np
 import torch
@@ -30,12 +30,16 @@ def get_rotation_matrix_from_rpy(rpy: np.ndarray) -> np.ndarray:
 
 class DeploymentRunner(object):
     def __init__(
-        self, agent: Go1Agent, cfg: dict, policy: Callable[[torch.Tensor], torch.Tensor]
+        self,
+        agent: Go1Agent,
+        cfg: dict,
+        policy: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
     ):
         self.agent = agent
         self.cfg = cfg
         self.policy = policy
         self.dt = self.cfg["control"]["decimation"] * self.cfg["sim"]["dt"]
+        self.num_obs_history = self.cfg["env"]["num_observation_history"]
 
         # Cache a few config values
         self.hip_reduction = cfg["control"]["hip_scale_reduction"]
@@ -98,6 +102,7 @@ class DeploymentRunner(object):
         self.action = torch.zeros(12)
         self.last_action = torch.zeros(12)
         self.clock_inputs = torch.zeros(4, dtype=torch.float)
+        self.obs_history: Optional[torch.Tensor] = None
 
     def execute_action(self, action: torch.Tensor):
         self.last_action = self.action
@@ -109,7 +114,8 @@ class DeploymentRunner(object):
         q += self.default_dof_pos
         self.agent.publish_action(q)
 
-    def assemble_observation(self, sensor: SensorData):
+    def observe(self) -> Dict[str, torch.Tensor]:
+        sensor = self.agent.read()
 
         # 1. Gravity Vector (dim = 3)
         R = get_rotation_matrix_from_rpy(sensor.body.rpy)
@@ -122,7 +128,7 @@ class DeploymentRunner(object):
         qpos = sensor.leg.q() - self.default_dof_pos
         qvel = sensor.leg.qd()
 
-        # Finally, assemble into an observation of batch size 1
+        # Now assemble into an observation of batch size 1
         observation = np.concatenate(
             [
                 gravity_vector,
@@ -136,7 +142,32 @@ class DeploymentRunner(object):
             ],
             axis=-1,
         ).reshape(1, -1)
-        return torch.tensor(observation, device="cuda").float()
+        observation = torch.tensor(observation, device="cuda")
+
+        # Finally, concatenate with the history observation
+        dim = observation.shape[1]
+        if self.obs_history is None:
+            self.obs_history = torch.zeros(
+                1,
+                self.num_obs_history * observation.shape[0],
+                dtype=torch.float,
+                device="cuda",
+                requires_grad=False,
+            )
+            self.obs_history[:, -dim:] = observation
+        else:
+            self.obs_history = torch.cat(
+                [self.obs_history[:, dim:], observation], dim=-1
+            )
+
+        assert isinstance(self.obs_history, torch.Tensor)
+        return {
+            "obs": observation,
+            "obs_history": self.obs_history,
+        }
+
+    def reset(self):
+        self.obs_history = None
 
     def calibrate(self, stance: str = "stand"):
         assert stance in ["stand", "down"]
@@ -175,9 +206,7 @@ class DeploymentRunner(object):
         # Now, run the control loop
         for _ in range(max_steps):
             self.time = time.time()
-            # TODO(breakds): Frame stacking
-            obs = self.assemble_observation(self.agent.read())
-            action = self.policy(obs)
+            action = self.policy(self.observe())
             self.execute_action(action)
             time.sleep(max(self.dt - (time.time() - self.time), 0))
 
