@@ -9,8 +9,10 @@ from foxy.deployment_runner import DeploymentRunner
 
 
 def load_policy(logdir: Path):
-    body = torch.jit.load(logdir / "checkpoints" / "body_latest.jit")
-    adaptation = torch.jit.load(logdir / "checkpoints" / "adaptation_module_latest.jit")
+    body = torch.jit.load(logdir / "checkpoints" / "body_latest.jit").cuda()
+    adaptation = torch.jit.load(
+        logdir / "checkpoints" / "adaptation_module_latest.jit"
+    ).cuda()
 
     def _forward(obs):
         latent = adaptation.forward(obs["obs_history"])
@@ -39,7 +41,8 @@ def main(logdir: str):
 
     agent = Go1Agent(500)  # Running at 500 Hz
     agent.spin()
-    runner = DeploymentRunner(agent, cfg, load_policy(root))
+    policy = load_policy(root)
+    runner = DeploymentRunner(agent, cfg, policy)
     runner.run()
 
 

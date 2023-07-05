@@ -122,10 +122,10 @@ class DeploymentRunner(object):
     def execute_action(self, action: torch.Tensor):
         self.last_action = self.action
         bound = self.cfg["normalization"]["clip_actions"]
-        self.action = torch.clip(action, -bound, bound)
+        self.action = torch.clip(action[0], -bound, bound)
         q = self.action.detach().cpu().numpy()
         q = q * self.cfg["control"]["action_scale"]
-        q[0, 3, 6, 9] *= self.cfg["control"]["hip_scale_reduction"]
+        q[[0, 3, 6, 9]] *= self.cfg["control"]["hip_scale_reduction"]
         q += self.default_dof_pos
         self.agent.publish_action(q)
 
@@ -133,7 +133,7 @@ class DeploymentRunner(object):
         sensor = self.agent.read()
 
         # 1. Gravity Vector (dim = 3)
-        R = get_rotation_matrix_from_rpy(sensor.body.rpy)
+        R = get_rotation_matrix_from_rpy(sensor.body.rpy())
         gravity_vector = np.dot(R.T, np.array([0, 0, -1], dtype=np.float32))
 
         # 2. Command Profile (dim = 9)
@@ -151,19 +151,21 @@ class DeploymentRunner(object):
                 qpos * self.obs_scales["dof_pos"],
                 qvel * self.obs_scales["dof_vel"],
                 self.action.detach().cpu().numpy(),
-                self.last_action.detach.cpu().numpy(),
+                self.last_action.detach().cpu().numpy(),
                 self.clock_inputs,
             ],
+            dtype=np.float32,
             axis=-1,
         ).reshape(1, -1)
         observation = torch.tensor(observation, device="cuda")
 
         # Finally, concatenate with the history observation
         dim = observation.shape[1]
+        assert dim == 70
         if self.obs_history is None:
             self.obs_history = torch.zeros(
                 1,
-                self.num_obs_history * observation.shape[0],
+                self.num_obs_history * dim,
                 dtype=torch.float,
                 device="cuda",
                 requires_grad=False,
