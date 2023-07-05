@@ -36,10 +36,11 @@ def main(logdir: str):
     root = Path(logdir)
     with open(root / "parameters.pkl", "rb") as f:
         cfg = pickle.load(f)["Cfg"]
-        agent = Go1Agent(500)  # Running at 500 Hz
-        agent.spin()
-        runner = DeploymentRunner(agent, cfg)
-        runner.run()
+
+    agent = Go1Agent(500)  # Running at 500 Hz
+    agent.spin()
+    runner = DeploymentRunner(agent, cfg, load_policy(root))
+    runner.run()
 
 
 if __name__ == "__main__":
