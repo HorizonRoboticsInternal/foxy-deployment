@@ -114,8 +114,10 @@ class DeploymentRunner(object):
         # States
         self.action = torch.zeros(12)
         self.last_action = torch.zeros(12)
-        self.clock_inputs = torch.zeros(4, dtype=torch.float)
+        self.gait_index = 0.0
+        self.clock_inputs = np.zeros(4, dtype=np.float32)
         self.obs_history: Optional[torch.Tensor] = None
+        self.commands = np.zeros(self.num_commands, dtype=np.float32)
 
     def execute_action(self, action: torch.Tensor):
         self.last_action = self.action
@@ -135,7 +137,7 @@ class DeploymentRunner(object):
         gravity_vector = np.dot(R.T, np.array([0, 0, -1], dtype=np.float32))
 
         # 2. Command Profile (dim = 9)
-        commands = self.command_profile.get_command()
+        self.commands = self.command_profile.get_command()
 
         # 3. Sensor Data
         qpos = sensor.leg.q() - self.default_dof_pos
@@ -145,13 +147,12 @@ class DeploymentRunner(object):
         observation = np.concatenate(
             [
                 gravity_vector,
-                commands * self.commands_scale,
+                self.commands * self.commands_scale,
                 qpos * self.obs_scales["dof_pos"],
                 qvel * self.obs_scales["dof_vel"],
                 self.action.detach().cpu().numpy(),
                 self.last_action.detach.cpu().numpy(),
-                # TODO(breakds): Figure out command profile and foot indices to add
-                # the clock inputs.
+                self.clock_inputs,
             ],
             axis=-1,
         ).reshape(1, -1)
@@ -219,8 +220,24 @@ class DeploymentRunner(object):
         # Now, run the control loop
         for _ in range(max_steps):
             self.time = time.time()
-            action = self.policy(self.observe())
+
+            obs = self.observe()  # will also updaqte self.commands
+            action = self.policy(obs)
             self.execute_action(action)
+
+            # Managing the clock index
+            frequency, phase, offset, bound = self.commands[4:8]
+            self.gait_index = (self.gait_index + self.dt * frequency) % 1.0
+            foot_indices = np.array(
+                [
+                    self.gait_index + phase + offset + bound,
+                    self.gait_index + offset,
+                    self.gait_index + bound,
+                    self.gait_index + phase,
+                ],
+                dtype=np.float32,
+            )
+            self.clock_inputs = np.sin(foot_indices * 2.0 * np.pi)
             time.sleep(max(self.dt - (time.time() - self.time), 0))
 
         # Finally, return to the standing stance
