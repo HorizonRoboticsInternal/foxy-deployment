@@ -8,6 +8,18 @@ from go1agent import Go1Agent
 from foxy.deployment_runner import DeploymentRunner
 
 
+def load_policy(logdir: Path):
+    body = torch.jit.load(logdir / "checkpoints" / "body_latest.jit")
+    adaptation = torch.jit.load(logdir / "checkpoints" / "adaptation_module_latest.jit")
+
+    def _forward(obs):
+        latent = adaptation.forward(obs["obs_history"])
+        action = body.forward(torch.cat([obs["obs_history"], latent], dim=-1))
+        return action
+
+    return _forward
+
+
 @click.command()
 @click.option(
     "--logdir",
