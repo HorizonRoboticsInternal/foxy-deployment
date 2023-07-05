@@ -127,7 +127,7 @@ class DeploymentRunner(object):
         q = q * self.cfg["control"]["action_scale"]
         q[[0, 3, 6, 9]] *= self.cfg["control"]["hip_scale_reduction"]
         q += self.default_dof_pos
-        self.agent.publish_action(q)
+        self.agent.publish_action(q[[3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]])
 
     def observe(self) -> Dict[str, torch.Tensor]:
         sensor = self.agent.read()

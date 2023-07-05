@@ -37,7 +37,7 @@ class ControllerCommandProfile(object):
         self.cmd_aux_reward = ValueHolder(0.0, 0.0, 0.0)  # Not used
 
         # Set the gait mode
-        self.set_gait_mode("pace")
+        self.set_gait_mode("bound")
 
     def set_gait_mode(self, mode: str):
         assert mode in ["bound", "trot", "pace", "pronk"]
