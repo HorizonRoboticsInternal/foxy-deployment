@@ -211,11 +211,15 @@ class DeploymentRunner(object):
             self.agent.publish_action(next_target)
             time.sleep(0.05)
 
+        logger.info("Finished calibrate().")
+
     def run(self, max_steps: int = 1_000_000):
         # First make the robot into a standing stance. Because of the Kp = 20,
         # the standing can be rather soft and more like "kneeling". This is
         # expected and has been confirmed by the author.
         self.calibrate(stance="stand")
+
+        input("Press enter to actually start the policy deployment ...")
 
         # Now, run the control loop
         for _ in range(max_steps):
