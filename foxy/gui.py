@@ -83,6 +83,15 @@ class GUI(object):
         elif keys[pygame.K_l]:
             self._cmd.cmd_height.alter(-0.001)
 
+        if keys[pygame.K_1]:
+            self._cmd.set_gait_mode("bound")
+        elif keys[pygame.K_2]:
+            self._cmd.set_gait_mode("trot")
+        elif keys[pygame.K_3]:
+            self._cmd.set_gait_mode("pace")
+        elif keys[pygame.K_4]:
+            self._cmd.set_gait_mode("pronk")
+
         self._screen.fill("black")
         # Status
         text_lon = self._status_font.render(
@@ -110,6 +119,10 @@ class GUI(object):
             f"Width [K, L]: {self._cmd.cmd_stance_width.value:.2f}", True, (0, 255, 0)
         )
         self._screen.blit(text_width, (50, 200))
+        text_gait = self._status_font.render(
+            f"Gait [1, 2, 3, 4]: {self._cmd.mode}", True, (0, 255, 0)
+        )
+        self._screen.blit(text_gait, (50, 230))
         pygame.display.flip()
 
         return False
