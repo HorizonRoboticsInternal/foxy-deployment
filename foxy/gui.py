@@ -42,36 +42,36 @@ class GUI(object):
 
         keys = pygame.key.get_pressed()
 
-        if keys[pygame.K_ESCAPE]:
+        if keys[pygame.K_ESCAPE] or keys[pygame.K_TAB]:
             return True
 
         if keys[pygame.K_w]:
-            self._cmd.cmd_x.alter(0.05)
+            self._cmd.cmd_x.alter(0.005)
         elif keys[pygame.K_s]:
-            self._cmd.cmd_x.alter(-0.05)
+            self._cmd.cmd_x.alter(-0.005)
         else:
-            self._cmd.cmd_x.tween_to_default(0.05)
+            self._cmd.cmd_x.tween_to_default(0.005)
 
         if keys[pygame.K_a]:
-            self._cmd.cmd_y.alter(0.01)
+            self._cmd.cmd_y.alter(0.001)
         elif keys[pygame.K_d]:
-            self._cmd.cmd_y.alter(-0.01)
+            self._cmd.cmd_y.alter(-0.001)
         else:
-            self._cmd.cmd_y.tween_to_default(0.02)
+            self._cmd.cmd_y.tween_to_default(0.002)
 
         if keys[pygame.K_q]:
-            self._cmd.cmd_yaw.alter(0.05)
+            self._cmd.cmd_yaw.alter(0.005)
         elif keys[pygame.K_e]:
-            self._cmd.cmd_yaw.alter(-0.05)
+            self._cmd.cmd_yaw.alter(-0.005)
         else:
-            self._cmd.cmd_yaw.tween_to_default(0.05)
+            self._cmd.cmd_yaw.tween_to_default(0.005)
 
         if keys[pygame.K_UP]:
-            self._cmd.cmd_ori_pitch.alter(0.01)
+            self._cmd.cmd_ori_pitch.alter(0.001)
         elif keys[pygame.K_DOWN]:
-            self._cmd.cmd_ori_pitch.alter(-0.01)
+            self._cmd.cmd_ori_pitch.alter(-0.001)
         else:
-            self._cmd.cmd_ori_pitch.tween_to_default(0.02)
+            self._cmd.cmd_ori_pitch.tween_to_default(0.002)
 
         if keys[pygame.K_RIGHT]:
             self._cmd.cmd_stance_width.alter(0.001)
