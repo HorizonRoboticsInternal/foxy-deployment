@@ -34,15 +34,23 @@ def load_policy(logdir: Path):
     ),
     help="The directory of the foxy logs and checkpoints",
 )
-def main(logdir: str):
+@click.option(
+    "--dryrun",
+    "-d",
+    is_flag=True,
+    help="In dryrun mode robot is not connected",
+)
+def main(logdir: str, dryrun: bool):
     root = Path(logdir)
     with open(root / "parameters.pkl", "rb") as f:
         cfg = pickle.load(f)["Cfg"]
 
     agent = Go1Agent(500)  # Running at 500 Hz
-    agent.spin()
+    if not dryrun:
+        # Blocking call that will wait for Go1 robot to be up
+        agent.spin()
     policy = load_policy(root)
-    runner = DeploymentRunner(agent, cfg, policy)
+    runner = DeploymentRunner(agent, cfg, policy, dryrun=dryrun)
     runner.run()
 
 

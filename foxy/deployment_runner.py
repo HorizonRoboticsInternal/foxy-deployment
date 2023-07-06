@@ -34,6 +34,7 @@ class DeploymentRunner(object):
         agent: Go1Agent,
         cfg: dict,
         policy: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
+        dryrun: bool = False,
     ):
         self.agent = agent
         self.cfg = cfg
@@ -41,6 +42,7 @@ class DeploymentRunner(object):
         self.dt = self.cfg["control"]["decimation"] * self.cfg["sim"]["dt"]
         self.num_obs_history = self.cfg["env"]["num_observation_history"]
         self.command_profile = ControllerCommandProfile()
+        self._dryrun = dryrun
 
         # Cache a few config values
         self.hip_reduction = cfg["control"]["hip_scale_reduction"]
@@ -127,7 +129,8 @@ class DeploymentRunner(object):
         q = q * self.cfg["control"]["action_scale"]
         q[[0, 3, 6, 9]] *= self.cfg["control"]["hip_scale_reduction"]
         q += self.default_dof_pos
-        self.agent.publish_action(q[[3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]])
+        if not self._dryrun:
+            self.agent.publish_action(q[[3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]])
 
     def observe(self) -> Dict[str, torch.Tensor]:
         sensor = self.agent.read()
@@ -194,12 +197,12 @@ class DeploymentRunner(object):
             "down": np.array([0.0, 0.3, -0.7] * 4, dtype=np.float32),
         }[stance]
 
-        state: SensorData = self.agent.read()
+        sensor: SensorData = self.agent.read()
 
         # Prepare the interpolated action (target qpos) sequence to reach the
         # final goal qpos.
         target_sequence = []
-        target = state.leg.q() - self.default_dof_pos
+        target = sensor.leg.q() - self.default_dof_pos
         while np.max(np.abs(target - final_goal)) > 1e-2:
             target -= np.clip((target - final_goal), -0.05, 0.05)
             target_sequence.append(target.copy())
@@ -219,7 +222,8 @@ class DeploymentRunner(object):
         # First make the robot into a standing stance. Because of the Kp = 20,
         # the standing can be rather soft and more like "kneeling". This is
         # expected and has been confirmed by the author.
-        self.calibrate(stance="stand")
+        if not self._dryrun:
+            self.calibrate(stance="stand")
 
         input("Press enter to actually start the policy deployment ...")
 
@@ -227,9 +231,10 @@ class DeploymentRunner(object):
         for _ in range(max_steps):
             self.time = time.time()
 
-            obs = self.observe()  # will also updaqte self.commands
-            action = self.policy(obs)
-            self.execute_action(action)
+            if not self._dryrun:
+                obs = self.observe()  # will also updaqte self.commands
+                action = self.policy(obs)
+                self.execute_action(action)
 
             # Managing the clock index
             frequency, phase, offset, bound = self.commands[4:8]
@@ -247,4 +252,5 @@ class DeploymentRunner(object):
             time.sleep(max(self.dt - (time.time() - self.time), 0))
 
         # Finally, return to the standing stance
-        self.calibrate(stance="stand")
+        if not self._dryrun:
+            self.calibrate(stance="stand")
