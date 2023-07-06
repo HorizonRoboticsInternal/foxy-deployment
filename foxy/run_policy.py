@@ -50,8 +50,8 @@ def main(logdir: str, dryrun: bool):
         # Blocking call that will wait for Go1 robot to be up
         agent.spin()
     policy = load_policy(root)
-    runner = DeploymentRunner(agent, cfg, policy, dryrun=dryrun)
-    runner.run()
+    runner = DeploymentRunner(agent, cfg, policy)
+    runner.run(dryrun=dryrun)
 
 
 if __name__ == "__main__":

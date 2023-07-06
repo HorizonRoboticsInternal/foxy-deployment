@@ -3,11 +3,14 @@ import time
 import math
 from typing import Callable, Dict, Optional
 
+import pygame
 import numpy as np
 import torch
 from loguru import logger
 from go1agent import Go1Agent, SensorData
+
 from foxy.command_profile import ControllerCommandProfile
+from foxy.gui import GUI
 
 
 def get_rotation_matrix_from_rpy(rpy: np.ndarray) -> np.ndarray:
@@ -34,7 +37,6 @@ class DeploymentRunner(object):
         agent: Go1Agent,
         cfg: dict,
         policy: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
-        dryrun: bool = False,
     ):
         self.agent = agent
         self.cfg = cfg
@@ -42,7 +44,7 @@ class DeploymentRunner(object):
         self.dt = self.cfg["control"]["decimation"] * self.cfg["sim"]["dt"]
         self.num_obs_history = self.cfg["env"]["num_observation_history"]
         self.command_profile = ControllerCommandProfile()
-        self._dryrun = dryrun
+        self.gui = GUI(command_profile=self.command_profile)
 
         # Cache a few config values
         self.hip_reduction = cfg["control"]["hip_scale_reduction"]
@@ -129,8 +131,7 @@ class DeploymentRunner(object):
         q = q * self.cfg["control"]["action_scale"]
         q[[0, 3, 6, 9]] *= self.cfg["control"]["hip_scale_reduction"]
         q += self.default_dof_pos
-        if not self._dryrun:
-            self.agent.publish_action(q[[3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]])
+        self.agent.publish_action(q[[3, 4, 5, 0, 1, 2, 9, 10, 11, 6, 7, 8]])
 
     def observe(self) -> Dict[str, torch.Tensor]:
         sensor = self.agent.read()
@@ -218,20 +219,20 @@ class DeploymentRunner(object):
 
         logger.info("Finished calibrate().")
 
-    def run(self, max_steps: int = 1_000_000):
+    def run(self, dryrun: bool):
         # First make the robot into a standing stance. Because of the Kp = 20,
         # the standing can be rather soft and more like "kneeling". This is
         # expected and has been confirmed by the author.
-        if not self._dryrun:
+        if not dryrun:
             self.calibrate(stance="stand")
 
-        input("Press enter to actually start the policy deployment ...")
+        self.gui.space_to_continue()
 
         # Now, run the control loop
-        for _ in range(max_steps):
+        while True:
             self.time = time.time()
 
-            if not self._dryrun:
+            if not dryrun:
                 obs = self.observe()  # will also updaqte self.commands
                 action = self.policy(obs)
                 self.execute_action(action)
@@ -249,8 +250,14 @@ class DeploymentRunner(object):
                 dtype=np.float32,
             )
             self.clock_inputs = np.sin(foot_indices * 2.0 * np.pi)
+
+            # Handle UI
+            if self.gui.handle_once():
+                break
+
             time.sleep(max(self.dt - (time.time() - self.time), 0))
 
         # Finally, return to the standing stance
-        if not self._dryrun:
+        if not dryrun:
             self.calibrate(stance="stand")
+        pygame.quit()
