@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <thread>
+#include <stdexcept>
 
 #include "spdlog/spdlog.h"
 
@@ -47,6 +48,7 @@ void Go1Agent::Spin() {
   loop_send_->start();
   loop_recv_->start();
 
+  int wait_steps = 0;
   while (true) {
     {
       std::lock_guard<std::mutex> lock{state_mutex_};
@@ -54,8 +56,12 @@ void Go1Agent::Spin() {
         break;
       }
     }
+    if (wait_steps > 15) {
+      throw std::runtime_error("Fatal Error: Timeout connecting the robot.");
+    }
     spdlog::info("Robot not ready yet. Wait for another 200ms ...");
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    ++wait_steps;
   }
   spdlog::info("Robot is now ready.");
 }
