@@ -102,8 +102,7 @@ class Go1Agent {
   UNITREE_LEGGED_SDK::LowCmd cmd_ = {0};
   std::mutex state_mutex_;
   UNITREE_LEGGED_SDK::LowState state_ = {0};
-  std::mutex target_q_mutex_;
-  std::array<float, 12> target_q_{};
+  std::mutex cmd_mutex_;
 };
 
 }  // namespace foxy

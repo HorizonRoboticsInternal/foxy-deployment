@@ -24,20 +24,6 @@ void Go1Agent::Spin() {
     cmd_.motorCmd[i].Kd  = 0.5f;
   }
 
-  // Initialize the command with a low profile neutral stance.
-  target_q_[0]  = -0.3;
-  target_q_[1]  = 1.2;
-  target_q_[2]  = -2.721;
-  target_q_[3]  = 0.3;
-  target_q_[4]  = 1.2;
-  target_q_[5]  = -2.721;
-  target_q_[6]  = -0.3;
-  target_q_[7]  = 1.2;
-  target_q_[8]  = -2.721;
-  target_q_[9]  = 0.3;
-  target_q_[10] = 1.2;
-  target_q_[11] = -2.721;
-
   loop_control_ = std::make_unique<UT::LoopFunc>(
       "control_loop", dt_, std::bind(&Go1Agent::RunOnce, this));
   loop_send_ = std::make_unique<UT::LoopFunc>(
@@ -68,23 +54,17 @@ void Go1Agent::Spin() {
 
 void Go1Agent::PublishAction(py::array_t<float> q) {
   {
-    std::lock_guard<std::mutex> lock(target_q_mutex_);
+    std::lock_guard<std::mutex> lock(cmd_mutex_);
     auto q_unchecked = q.unchecked<1>();
-    std::copy(q_unchecked.data(0), q_unchecked.data(0) + 12, target_q_.begin());
+    for (int i = 0; i < 12; ++i) {
+      cmd_.motorCmd[i].q = q_unchecked(i);
+    }
+
+    // Make command ready for the control board.
+    safe_.PositionLimit(cmd_);
+    safe_.PowerProtect(cmd_, state_, 9);
+    udp_.SetSend(cmd_);
   }
-  spdlog::info("Target q is now {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}",
-               target_q_[0],
-               target_q_[1],
-               target_q_[2],
-               target_q_[3],
-               target_q_[4],
-               target_q_[5],
-               target_q_[6],
-               target_q_[7],
-               target_q_[8],
-               target_q_[9],
-               target_q_[10],
-               target_q_[11]);
 }
 
 void Go1Agent::RunOnce() {
@@ -95,24 +75,16 @@ void Go1Agent::RunOnce() {
 
   if (first_ever_ && state_.motorState[0].q != 0) {
     // Initialize the command if the robot is not in all-zero state.
-    std::lock_guard<std::mutex> lock(target_q_mutex_);
+    std::lock_guard<std::mutex> lock(cmd_mutex_);
     for (int i = 0; i < 12; ++i) {
-      target_q_[i] = state_.motorState[i].q;
+      cmd_.motorCmd[i].q = state_.motorState[i].q;
     }
     first_ever_ = false;
-  }
 
-  {
-    std::lock_guard<std::mutex> lock(target_q_mutex_);
-    for (int i = 0; i < 12; ++i) {
-      cmd_.motorCmd[i].q = target_q_[i];
-    }
+    safe_.PositionLimit(cmd_);
+    safe_.PowerProtect(cmd_, state_, 9);
+    udp_.SetSend(cmd_);
   }
-
-  // Make command ready for the control board.
-  safe_.PositionLimit(cmd_);
-  safe_.PowerProtect(cmd_, state_, 9);
-  udp_.SetSend(cmd_);
 }
 
 SensorData Go1Agent::Read() {
