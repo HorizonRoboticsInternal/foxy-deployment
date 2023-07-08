@@ -18,6 +18,7 @@
     overlays = {
       dev = nixpkgs.lib.composeManyExtensions [
         ml-pkgs.overlays.torch-family
+        ml-pkgs.overlays.simulators
         unitree-go1-sdk.overlays.default
         (final: prev: {
           pythonPackagesExtensions = prev.pythonPackagesExtensions ++ [
@@ -52,6 +53,7 @@
           pygame
           loguru
           click
+          mujoco-pybind
           go1agent
 
           # Dev Tools

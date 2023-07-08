@@ -7,10 +7,13 @@ import pygame
 import numpy as np
 import torch
 from loguru import logger
-from go1agent import Go1Agent, SensorData
+from go1agent import Go1Agent
+import mujoco
+import mujoco.viewer
 
 from foxy.command_profile import ControllerCommandProfile
 from foxy.gui import GUI
+from foxy.mujoco_agent import MujocoAgent
 
 
 def get_rotation_matrix_from_rpy(rpy: np.ndarray) -> np.ndarray:
@@ -34,7 +37,7 @@ def get_rotation_matrix_from_rpy(rpy: np.ndarray) -> np.ndarray:
 class DeploymentRunner(object):
     def __init__(
         self,
-        agent: Go1Agent,
+        agent: Go1Agent | MujocoAgent,
         cfg: dict,
         policy: Callable[[Dict[str, torch.Tensor]], torch.Tensor],
     ):
@@ -198,7 +201,7 @@ class DeploymentRunner(object):
             "down": np.array([0.0, 0.3, -0.7] * 4, dtype=np.float32),
         }[stance]
 
-        sensor: SensorData = self.agent.read()
+        sensor = self.agent.read()
 
         # Prepare the interpolated action (target qpos) sequence to reach the
         # final goal qpos.
@@ -219,7 +222,7 @@ class DeploymentRunner(object):
 
         logger.info("Finished calibrate().")
 
-    def run(self, dryrun: bool):
+    def run_physical(self, dryrun: bool):
         # First make the robot into a standing stance. Because of the Kp = 20,
         # the standing can be rather soft and more like "kneeling". This is
         # expected and has been confirmed by the author.
@@ -261,3 +264,46 @@ class DeploymentRunner(object):
         if not dryrun:
             self.calibrate(stance="stand")
         pygame.quit()
+
+    def run_mujoco(self, dryrun: bool):
+        assert isinstance(self.agent, MujocoAgent)
+        decimation = self.cfg["control"]["decimation"]
+
+        with mujoco.viewer.launch_passive(self.agent.model, self.agent.data) as viewer:
+            while viewer.is_running():
+                self.time = time.time()
+
+                obs = self.observe()  # will also update self.commands
+                action = self.policy(obs)
+                self.execute_action(action)
+
+                self.agent.step(decimation)
+                viewer.sync()
+
+                # Managing the clock index
+                frequency, phase, offset, bound = self.commands[4:8]
+                self.gait_index = (self.gait_index + self.dt * frequency) % 1.0
+                foot_indices = np.array(
+                    [
+                        self.gait_index + phase + offset + bound,
+                        self.gait_index + offset,
+                        self.gait_index + bound,
+                        self.gait_index + phase,
+                    ],
+                    dtype=np.float32,
+                )
+                self.clock_inputs = np.sin(foot_indices * 2.0 * np.pi)
+
+                # Handle UI
+                if self.gui.handle_once():
+                    break
+
+                time.sleep(max(self.dt - (time.time() - self.time), 0))
+
+            pygame.quit()
+
+    def run(self, dryrun: bool = False):
+        if isinstance(self.agent, Go1Agent):
+            self.run_physical(dryrun)
+        elif isinstance(self.agent, MujocoAgent):
+            self.run_mujoco(dryrun)

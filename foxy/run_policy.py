@@ -6,6 +6,7 @@ import click
 
 from go1agent import Go1Agent
 from foxy.deployment_runner import DeploymentRunner
+from foxy.mujoco_agent import MujocoAgent
 
 
 def load_policy(logdir: Path):
@@ -40,15 +41,23 @@ def load_policy(logdir: Path):
     is_flag=True,
     help="In dryrun mode robot is not connected",
 )
-def main(logdir: str, dryrun: bool):
+@click.option(
+    "--mujoco",
+    is_flag=True,
+    help="Run mujoco simulation instead",
+)
+def main(logdir: str, dryrun: bool, mujoco: bool):
     root = Path(logdir)
     with open(root / "parameters.pkl", "rb") as f:
         cfg = pickle.load(f)["Cfg"]
 
-    agent = Go1Agent(500)  # Running at 500 Hz
-    if not dryrun:
-        # Blocking call that will wait for Go1 robot to be up
-        agent.spin()
+    if mujoco:
+        agent = MujocoAgent(sim_dt=cfg["sim"]["dt"])
+    else:
+        agent = Go1Agent(500)  # Running at 500 Hz
+        if not dryrun:
+            # Blocking call that will wait for Go1 robot to be up
+            agent.spin()
     policy = load_policy(root)
     runner = DeploymentRunner(agent, cfg, policy)
     runner.run(dryrun=dryrun)
