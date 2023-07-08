@@ -278,6 +278,8 @@ class DeploymentRunner(object):
                 self.execute_action(action)
 
                 self.agent.step(decimation)
+                with viewer.lock():
+                    viewer.cam.lookat = self.agent.data.body("trunk").subtree_com
                 viewer.sync()
 
                 # Managing the clock index
