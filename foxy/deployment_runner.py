@@ -298,7 +298,7 @@ class DeploymentRunner(object):
 
                 # Handle UI
                 if self.gui.handle_once():
-                    break
+                    viewer.close()
 
                 time.sleep(max(self.dt - (time.time() - self.time), 0))
 
