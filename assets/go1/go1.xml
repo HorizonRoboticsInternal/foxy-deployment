@@ -154,21 +154,21 @@
         </body>
     </worldbody>
     <actuator>
-        <position class="actuator_on_hip" joint="FR_hip_joint" />
-        <position class="actuator_on_thigh" joint="FR_thigh_joint" />
-        <position class="actuator_on_calf" joint="FR_calf_joint" />
+        <position name="FR_hip_actuator" class="actuator_on_hip" joint="FR_hip_joint" />
+        <position name="FR_thigh_actuator" class="actuator_on_thigh" joint="FR_thigh_joint" />
+        <position name="FR_calf_actuator" class="actuator_on_calf" joint="FR_calf_joint" />
 
-        <position class="actuator_on_hip" joint="FL_hip_joint" />
-        <position class="actuator_on_thigh" joint="FL_thigh_joint" />
-        <position class="actuator_on_calf" joint="FL_calf_joint" />
+        <position name="FL_hip_actuator" class="actuator_on_hip" joint="FL_hip_joint" />
+        <position name="FL_thigh_actuator" class="actuator_on_thigh" joint="FL_thigh_joint" />
+        <position name="FL_calf_actuator" class="actuator_on_calf" joint="FL_calf_joint" />
 
-        <position class="actuator_on_hip" joint="RR_hip_joint" />
-        <position class="actuator_on_thigh" joint="RR_thigh_joint" />
-        <position class="actuator_on_calf" joint="RR_calf_joint" />
+        <position name="RR_hip_actuator" class="actuator_on_hip" joint="RR_hip_joint" />
+        <position name="RR_thigh_actuator" class="actuator_on_thigh" joint="RR_thigh_joint" />
+        <position name="RR_calf_actuator" class="actuator_on_calf" joint="RR_calf_joint" />
 
-        <position class="actuator_on_hip" joint="RL_hip_joint" />
-        <position class="actuator_on_thigh" joint="RL_thigh_joint" />
-        <position class="actuator_on_calf" joint="RL_calf_joint" />
+        <position name="RL_hip_actuator" class="actuator_on_hip" joint="RL_hip_joint" />
+        <position name="RL_thigh_actuator" class="actuator_on_thigh" joint="RL_thigh_joint" />
+        <position name="RL_calf_actuator" class="actuator_on_calf" joint="RL_calf_joint" />
     </actuator>
 
     <sensor>
@@ -207,6 +207,18 @@
 
         <framequat name="Body_Quat" objtype="site" objname="imu"/>
 
+        <actuatorfrc name="FR_hip_tau"     actuator="FR_hip_actuator"/>
+        <actuatorfrc name="FR_thigh_tau"   actuator="FR_thigh_actuator"/>
+        <actuatorfrc name="FR_calf_tau"    actuator="FR_calf_actuator"/>
+        <actuatorfrc name="FL_hip_tau"     actuator="FL_hip_actuator"/>
+        <actuatorfrc name="FL_thigh_tau"   actuator="FL_thigh_actuator"/>
+        <actuatorfrc name="FL_calf_tau"    actuator="FL_calf_actuator"/>
+        <actuatorfrc name="RR_hip_tau"     actuator="RR_hip_actuator"/>
+        <actuatorfrc name="RR_thigh_tau"   actuator="RR_thigh_actuator"/>
+        <actuatorfrc name="RR_calf_tau"    actuator="RR_calf_actuator" />
+        <actuatorfrc name="RL_hip_tau"     actuator="RL_hip_actuator"/>
+        <actuatorfrc name="RL_thigh_tau"   actuator="RL_thigh_actuator"/>
+        <actuatorfrc name="RL_calf_tau"    actuator="RL_calf_actuator"/>
     </sensor>
 
     <keyframe>

@@ -118,6 +118,23 @@ class MujocoAgent(object):
             ]
         )
 
+        self._tau_indices = self._get_sensor_indices(
+            [
+                "FR_hip_tau",
+                "FR_thigh_tau",
+                "FR_calf_tau",
+                "FL_hip_tau",
+                "FL_thigh_tau",
+                "FL_calf_tau",
+                "RR_hip_tau",
+                "RR_thigh_tau",
+                "RR_calf_tau",
+                "RL_hip_tau",
+                "RL_thigh_tau",
+                "RL_calf_tau",
+            ]
+        )
+
         self._quat_indices = self._get_sensor_indices(["Body_Quat"])
         self._gyro_indices = self._get_sensor_indices(["Body_Gyro"])
 
@@ -153,7 +170,7 @@ class MujocoAgent(object):
             leg=LegControlData(
                 q_data=self._data.sensordata[self._q_indices],
                 qd_data=self._data.sensordata[self._qd_indices],
-                tau_est_data=self._data.actuator_force,
+                tau_est_data=self._data.sensordata[self._tau_indices],
             ),
             body=BodyData(
                 rpy_data=rpy,
