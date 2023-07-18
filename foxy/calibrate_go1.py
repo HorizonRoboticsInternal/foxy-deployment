@@ -111,18 +111,13 @@ class Recorder(object):
         state = agent.read()
         if isinstance(agent, MujocoAgent):
             self.type = "mujoco"
-            self.qpos.append(state.leg.q)
-            self.qvel.append(state.leg.qd)
-            self.torque.append(state.leg.tau)
-            self.gyro.append(state.body.omega)
-            self.rpy.append(state.body.rpy)
         elif isinstance(agent, Go1Agent):
             self.type = "physical"
-            self.qpos.append(state.leg.q())
-            self.qvel.append(state.leg.qd())
-            self.torque.append(state.leg.tau())
-            self.gyro.append(state.body.omega())
-            self.rpy.append(state.body.rpy())
+        self.qpos.append(state.leg.q())
+        self.qvel.append(state.leg.qd())
+        self.torque.append(state.leg.tau())
+        self.gyro.append(state.body.omega())
+        self.rpy.append(state.body.rpy())
         self.cmd.append(cmd)
 
     def save(self, path: Path):
