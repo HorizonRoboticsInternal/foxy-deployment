@@ -195,6 +195,7 @@ def mjc(record: str):
     script.log()
 
     recorder = Recorder()
+    recorder.add_script(script)
     with mujoco.viewer.launch_passive(agent.model, agent.data) as viewer:
         step = 0
         while viewer.is_running():
@@ -269,6 +270,7 @@ def phy(record):
 
     step = 0
     recorder = Recorder()
+    recorder.add_script(script)
     while True:
         start = time.time()
         cmd = script.cmd(step)
