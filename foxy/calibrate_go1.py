@@ -91,36 +91,54 @@ class Script(object):
 
 
 class Recorder(object):
-    def __ini__(self):
-        self._type = "undecided"
-        self._script = ""
-        self._cmd = []
-        self._qpos = []
-        self._qvel = []
-        self._torque = []  # torque
-        self._gyro = []
-        self._contact = []
+    def __init__(self):
+        self.type = "undecided"
+        self.script = ""
+        self.cmd = []
+        self.qpos = []
+        self.qvel = []
+        self.torque = []  # torque
+        self.gyro = []
+        self.rpy = []
+        self.contact = []
 
     def add_script(self, script: Script):
-        self._script = f"{script}"
+        self.script = f"{script}"
 
-    def add_mujoco(self, model: MjModel, data: MjData):
-        if self._type == "undecided":
-            self._type = "mujoco"
-        assert self._type == "mujoco"
-        self._cmd.append(data.ctrl)
+    def add_mujoco(self, agent: MujocoAgent):
+        if self.type == "undecided":
+            self.type = "mujoco"
+        assert self.type == "mujoco"
+        self.cmd.append(agent.data.ctrl)
+        state = agent.read()
+        self.qpos.append(state.leg.q)
+        self.qvel.append(state.leg.qd)
+        self.torque.append(state.leg.tau)
+        self.gyro.append(state.body.omega)
+        self.rpy.append(state.body.rpy)
 
     def save(self, path: Path):
         with open(path, "wb") as f:
             pickle.dump(
                 {
-                    "type": self._type,
-                    "script": self._script,
-                    "cmd": self._cmd,
+                    "type": self.type,
+                    "script": self.script,
+                    **{
+                        key: np.stack(getattr(self, key))
+                        for key in [
+                            "cmd",
+                            "qpos",
+                            "qvel",
+                            "torque",
+                            "gyro",
+                            "rpy",
+                            # "contact"
+                        ]
+                    },
                 },
                 f,
             )
-        logger.info("Successfully saved recorded data to {path}")
+        logger.info(f"Successfully saved recorded data to {path}")
 
 
 @click.group()
@@ -129,7 +147,11 @@ def app():
 
 
 @app.command()
-def mjc():
+@click.option(
+    "--record",
+    default="/home/breakds/syncthing/workspace/hobot/calibrate_go1/mujoco.pkl",
+)
+def mjc(record: str):
     logger.info("Calibrating Go1 in MuJoCo ...")
     dt = 0.005
     decimation = 4
@@ -144,12 +166,15 @@ def mjc():
     script.keyframe("squat", 3.0)
     script.log()
 
+    recorder = Recorder()
     with mujoco.viewer.launch_passive(agent.model, agent.data) as viewer:
         step = 0
         while viewer.is_running():
             start = time.time()
             agent.publish_action(script.cmd(step))
-            agent.step(decimation)
+            for _ in range(decimation):
+                recorder.add_mujoco(agent)
+                agent.step(1)
 
             with viewer.lock():
                 viewer.cam.lookat = agent.data.body("trunk").subtree_com
@@ -157,6 +182,7 @@ def mjc():
             step = step + 1
             time.sleep(max(dt * decimation + start - time.time(), 0))
         viewer.close()
+    recorder.save(Path(record))
 
 
 @app.command()

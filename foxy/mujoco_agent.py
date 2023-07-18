@@ -119,6 +119,7 @@ class MujocoAgent(object):
         )
 
         self._quat_indices = self._get_sensor_indices(["Body_Quat"])
+        self._gyro_indices = self._get_sensor_indices(["Body_Gyro"])
 
     def _get_sensor_indices(self, names) -> np.ndarray:
         indices = []
@@ -152,8 +153,12 @@ class MujocoAgent(object):
             leg=LegControlData(
                 q_data=self._data.sensordata[self._q_indices],
                 qd_data=self._data.sensordata[self._qd_indices],
+                tau_est_data=self._data.actuator_force,
             ),
-            body=BodyData(rpy_data=rpy),
+            body=BodyData(
+                rpy_data=rpy,
+                omega_data=self._data.sensordata[self._gyro_indices],
+            ),
         )
 
     def step(self, decimation: int):
