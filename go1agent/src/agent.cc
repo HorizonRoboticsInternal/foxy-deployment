@@ -1,8 +1,8 @@
 #include "src/agent.h"
 
 #include <chrono>
-#include <thread>
 #include <stdexcept>
+#include <thread>
 
 #include "spdlog/spdlog.h"
 
@@ -16,12 +16,12 @@ Go1Agent::Go1Agent(int frequency)
   udp_.InitCmdData(cmd_);
 }
 
-void Go1Agent::Spin() {
+void Go1Agent::Spin(float stiffness, float damping) {
   for (int i = 0; i < 12; ++i) {
     cmd_.motorCmd[i].dq  = 0.0f;
     cmd_.motorCmd[i].tau = 0.0f;
-    cmd_.motorCmd[i].Kp  = 20.0f;
-    cmd_.motorCmd[i].Kd  = 0.5f;
+    cmd_.motorCmd[i].Kp  = stiffness;
+    cmd_.motorCmd[i].Kd  = damping;
   }
 
   loop_control_ = std::make_unique<UT::LoopFunc>(

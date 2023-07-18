@@ -64,7 +64,7 @@ class Go1Agent {
  public:
   Go1Agent(int frequency = 500);
 
-  void Spin();
+  void Spin(float stiffness = 20.0f, float damping = 0.5f);
   void PublishAction(pybind11::array_t<float> q);
 
   void GetObs() {

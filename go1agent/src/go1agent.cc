@@ -16,7 +16,11 @@ PYBIND11_MODULE(go1agent, m) {
 
   py::class_<Go1Agent>(m, "Go1Agent")
       .def(py::init<float>())
-      .def("spin", &Go1Agent::Spin)
+      .def("spin",
+           &Go1Agent::Spin,
+           "Start the spinning loop of the physical robot",
+           py::arg("stiffness") = 20.0f,
+           py::arg("damping")   = 0.5f)
       .def("publish_action", &Go1Agent::PublishAction)
       .def("get_obs", &Go1Agent::GetObs)
       .def("read", &Go1Agent::Read);

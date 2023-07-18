@@ -244,7 +244,7 @@ def physical(record):
     control_frequency = int(1.0 / decimation / dt)
     assert control_frequency == 50
     agent = Go1Agent(1000)  # Internal loop at 1000 Hz
-    agent.spin()
+    agent.spin(stiffness=50.0, damping=1.0)
 
     # The following script let the robot stand for 3 seconds and squat for 3
     # seconds, back and forth.
