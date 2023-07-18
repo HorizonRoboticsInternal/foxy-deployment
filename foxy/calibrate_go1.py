@@ -108,17 +108,22 @@ class Recorder(object):
         self.script = f"{script}"
 
     def add(self, agent: MujocoAgent | Go1Agent, cmd: np.ndarray):
+        state = agent.read()
         if isinstance(agent, MujocoAgent):
             self.type = "mujoco"
+            self.qpos.append(state.leg.q)
+            self.qvel.append(state.leg.qd)
+            self.torque.append(state.leg.tau)
+            self.gyro.append(state.body.omega)
+            self.rpy.append(state.body.rpy)
         elif isinstance(agent, Go1Agent):
             self.type = "physical"
+            self.qpos.append(state.leg.q())
+            self.qvel.append(state.leg.qd())
+            self.torque.append(state.leg.tau())
+            self.gyro.append(state.body.omega())
+            self.rpy.append(state.body.rpy())
         self.cmd.append(cmd)
-        state = agent.read()
-        self.qpos.append(state.leg.q)
-        self.qvel.append(state.leg.qd)
-        self.torque.append(state.leg.tau)
-        self.gyro.append(state.body.omega)
-        self.rpy.append(state.body.rpy)
 
     def save(self, path: Path):
         with open(path, "wb") as f:
@@ -158,6 +163,7 @@ class PhysicalGUI(object):
         text = font.render(f"Press Space to {label} ...", True, (0, 0, 0))
         self._screen.fill("white")
         self._screen.blit(text, (100, 400))
+        pygame.display.flip()
         return False
 
 
@@ -237,7 +243,7 @@ def phsyical_soft_initialize(agent: Go1Agent):
     "--record",
     default="/home/breakds/syncthing/workspace/hobot/calibrate_go1/mujoco.pkl",
 )
-def physical(record):
+def phy(record):
     logger.info("Calibrating on Physical Go1 ...")
     dt = 0.005
     decimation = 4
