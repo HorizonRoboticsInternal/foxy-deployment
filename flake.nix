@@ -55,6 +55,7 @@
           click
           mujoco-pybind
           go1agent
+          bokeh
 
           # Dev Tools
           pudb
