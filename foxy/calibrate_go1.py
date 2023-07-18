@@ -23,6 +23,16 @@ NEUTRAL_STANCE_QPOS = [
 # fmt: on
 
 
+# fmt: off
+SLIGHT_SQUAT_QPOS = [
+    -0.1, 1.0, -1.7,  # Front Right
+    0.1,  1.0, -1.7,  # Front Left
+    -0.1, 1.0, -1.7,  # Rear Right
+    0.1,  1.0, -1.7,  # Rear Left
+]
+# fmt: on
+
+
 class Script(object):
     def __init__(self, control_frequency: int = 50):
         # A stance is specified by a name and a target qpos of dim 12.
@@ -60,14 +70,24 @@ class Script(object):
             step -= self._duration_steps[i]
         return self._stances[self._keyframes[-1][0]]
 
-    def __str__(self) -> str:
+    def statements(self) -> List[str]:
         statements: List[str] = []
         for name, qpos in self._stances.items():
             statements.append(f"STANCE {name} {qpos}")
         statements.append("")
         for name, duration in self._keyframes:
             statements.append(f"KEYFRAME {name} {duration} seconds")
-        return "\n".join(statements) + "\n"
+        return statements
+
+    def __str__(self) -> str:
+        return "\n".join(self.statements()) + "\n"
+
+    def log(self):
+        logger.info("Executing the following script")
+        logger.info("---------- Script ----------")
+        for statement in self.statements():
+            logger.info(statement)
+        logger.info("---------- End Script ----------")
 
 
 class Recorder(object):
@@ -119,16 +139,10 @@ def mjc():
     # seconds, back and forth.
     script = Script()
     script.stance("stand", NEUTRAL_STANCE_QPOS)
-    # fmt: off
-    script.stance("squat", [
-        -0.1, 1.0, -1.7,  # Front Right
-        0.1,  1.0, -1.7,  # Front Left
-        -0.1, 1.0, -1.7,  # Rear Right
-        0.1,  1.0, -1.7,  # Rear Left
-    ])
-    # fmt: on
+    script.stance("squat", SLIGHT_SQUAT_QPOS)
     script.keyframe("stand", 3.0)
     script.keyframe("squat", 3.0)
+    script.log()
 
     with mujoco.viewer.launch_passive(agent.model, agent.data) as viewer:
         step = 0
