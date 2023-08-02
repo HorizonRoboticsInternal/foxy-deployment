@@ -284,9 +284,16 @@ def phy(record):
 
     gui = PhysicalGUI()
     while True:
+        if gui.check_space_pressed("Initialize"):
+            break
+
+    phsyical_soft_initialize(agent)
+
+    time.sleep(0.5)
+
+    while True:
         if gui.check_space_pressed("start"):
             break
-    phsyical_soft_initialize(agent)
 
     step = 0
     recorder = Recorder()
