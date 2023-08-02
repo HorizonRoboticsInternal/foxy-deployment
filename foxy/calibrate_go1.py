@@ -108,7 +108,11 @@ class Script(object):
     def fast_disturbance(control_frequency: int) -> Script:
         script = Script(control_frequency=control_frequency)
         script.stance("stand", NEUTRAL_STANCE_QPOS)
-        script.stance("disturb", [x + 0.1 for x in NEUTRAL_STANCE_QPOS])
+        disturbed = NEUTRAL_STANCE_QPOS.copy()
+        for i in range(12):
+            if i % 3 != 0:
+                disturbed[i] += 0.1
+        script.stance("disturb", disturbed)
         script.keyframe("stand", 0.02)
         script.keyframe("disturb", 0.02)
         return script
