@@ -3,7 +3,15 @@ from typing import NamedTuple
 import math
 
 import numpy as np
-from mujoco import MjModel, MjData, mj_step, mj_resetDataKeyframe
+from mujoco import (
+    MjModel,
+    MjData,
+    mj_step,
+    mj_resetDataKeyframe,
+    mj_step1,
+    mj_step2,
+    mjtIntegrator,
+)
 
 
 def compute_rpy_single(q: np.ndarray) -> np.ndarray:
@@ -138,6 +146,11 @@ class MujocoAgent(object):
         self._quat_indices = self._get_sensor_indices(["Body_Quat"])
         self._gyro_indices = self._get_sensor_indices(["Body_Gyro"])
 
+        if self._model.opt.integrator == mjtIntegrator.mjINT_RK4.value:
+            self._first_step = mj_step
+        else:
+            self._first_step = mj_step2
+
     def _get_sensor_indices(self, names) -> np.ndarray:
         indices = []
         for name in names:
@@ -179,4 +192,6 @@ class MujocoAgent(object):
         )
 
     def step(self, decimation: int):
-        mj_step(self._model, self._data, decimation)
+        for i in range(decimation):
+            self._first_step(self._model, self._data)
+            mj_step1(self._model, self._data)
