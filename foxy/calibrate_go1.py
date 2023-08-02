@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 import pickle
 from typing import Dict, Tuple, List
@@ -91,6 +92,26 @@ class Script(object):
             logger.info(statement)
         logger.info("---------- End Script ----------")
 
+    @staticmethod
+    def step_response(control_frequency: int) -> Script:
+        # The following script let the robot stand for 3 seconds and squat for 3
+        # seconds, back and forth.
+        script = Script(control_frequency=control_frequency)
+        script.stance("stand", NEUTRAL_STANCE_QPOS)
+        script.stance("squat", SLIGHT_SQUAT_QPOS)
+        script.keyframe("stand", 3.0)
+        script.keyframe("squat", 3.0)
+        return script
+
+    @staticmethod
+    def fast_disturbance(control_frequency: int) -> Script:
+        script = Script(control_frequency=control_frequency)
+        script.stance("stand", NEUTRAL_STANCE_QPOS)
+        script.stance("disturb", [x + 0.1 for x in NEUTRAL_STANCE_QPOS])
+        script.keyframe("stand", 0.02)
+        script.keyframe("disturb", 0.02)
+        return script
+
 
 class Recorder(object):
     def __init__(self):
@@ -180,13 +201,7 @@ def mjc(record: str):
     assert control_frequency == 50
     agent = MujocoAgent(sim_dt=dt)
 
-    # The following script let the robot stand for 3 seconds and squat for 3
-    # seconds, back and forth.
-    script = Script(control_frequency=control_frequency)
-    script.stance("stand", NEUTRAL_STANCE_QPOS)
-    script.stance("squat", SLIGHT_SQUAT_QPOS)
-    script.keyframe("stand", 3.0)
-    script.keyframe("squat", 3.0)
+    script = Script.step_response(control_frequency=control_frequency)
     script.log()
 
     recorder = Recorder()
@@ -248,13 +263,7 @@ def phy(record):
     agent = Go1Agent(1000)  # Internal loop at 1000 Hz
     agent.spin(stiffness=50.0, damping=1.0)
 
-    # The following script let the robot stand for 3 seconds and squat for 3
-    # seconds, back and forth.
-    script = Script(control_frequency=control_frequency)
-    script.stance("stand", NEUTRAL_STANCE_QPOS)
-    script.stance("squat", SLIGHT_SQUAT_QPOS)
-    script.keyframe("stand", 3.0)
-    script.keyframe("squat", 3.0)
+    script = Script.step_response(control_frequency=control_frequency)
     script.log()
 
     gui = PhysicalGUI()
