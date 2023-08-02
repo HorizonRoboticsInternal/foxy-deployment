@@ -3,6 +3,7 @@ from pathlib import Path
 import pickle
 from typing import Dict, Tuple, List
 import time
+from collections import deque
 
 import click
 import numpy as np
@@ -193,11 +194,26 @@ def app():
     "--record",
     default="/home/breakds/syncthing/workspace/hobot/calibrate_go1/mujoco.pkl",
 )
-def mjc(record: str):
+@click.option(
+    "--ctrl_delay",
+    default=0.005,
+)
+def mjc(record: str, ctrl_delay: float):
     logger.info("Calibrating Go1 in MuJoCo ...")
     dt = 0.005
     decimation = 4
     control_frequency = int(1.0 / decimation / dt)
+    num_ctrl_delay_steps = ctrl_delay // dt
+    delay_queue = deque([])
+
+    def delayed_cmd(x):
+        if num_ctrl_delay_steps == 0:
+            return x
+        delay_queue.append(x)
+        if len(delay_queue) < num_ctrl_delay_steps:
+            return x
+        return delay_queue.popleft()
+
     assert control_frequency == 50
     agent = MujocoAgent(sim_dt=dt)
 
@@ -211,7 +227,7 @@ def mjc(record: str):
         while viewer.is_running():
             start = time.time()
             cmd = script.cmd(step)
-            agent.publish_action(cmd)
+            agent.publish_action(delayed_cmd(cmd))
             for _ in range(decimation):
                 recorder.add(agent, cmd)
                 agent.step(1)
